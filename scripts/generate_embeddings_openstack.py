@@ -58,6 +58,34 @@ class RedHatDocsMetadataProcessor(MetadataProcessor):
         )
 
 
+class JIRAMetadataProcessor(MetadataProcessor):
+    ROOT_URL = "https://issues.redhat.com/browse/{}"
+
+    def __init__(self, docs_path, base_url=ROOT_URL):
+        super(JIRAMetadataProcessor, self).__init__()
+        self._base_path = os.path.abspath(docs_path)
+        if self._base_path.endswith("/"):
+            self._base_path = self._base_path[:-1]
+        self.base_url = base_url
+
+    def url_function(self, file_path: str):
+        return clean_url(self.base_url.format(str(Path(file_path).name.rstrip(".txt"))))
+
+
+class NotesMetadataProcessor(MetadataProcessor):
+    ROOT_URL = "file:///home/csibbitt/Documents/NOTES/{}"
+
+    def __init__(self, docs_path, base_url=ROOT_URL):
+        super(NotesMetadataProcessor, self).__init__()
+        self._base_path = os.path.abspath(docs_path)
+        if self._base_path.endswith("/"):
+            self._base_path = self._base_path[:-1]
+        self.base_url = base_url
+
+    def url_function(self, file_path: str):
+        return clean_url(self.base_url.format(str(Path(file_path).name)))
+
+
 if __name__ == "__main__":
     parser = utils.get_common_arg_parser()
     parser.add_argument(
@@ -67,12 +95,32 @@ if __name__ == "__main__":
         required=False,
         help="Directory containing the plain text RHOSO documentation",
     )
+    parser.add_argument(
+        "-jf",
+        "--jira-folder",
+        type=Path,
+        required=False,
+        help="Directory containing the plain text JIRAs",
+    )
+
+    parser.add_argument(
+        "-nf",
+        "--notes-folder",
+        type=Path,
+        required=False,
+        help="Directory containing notes in markdown format",
+    )
     args = parser.parse_args()
 
-    if not args.folder and not args.rhoso_folder:
+    if (
+        not args.folder
+        and not args.rhoso_folder
+        and not args.jira_folder
+        and not args.notes_folder
+    ):
         print(
-            'Error: Either the "--folder" and/or "--rhoso-folder" options '
-            "must be provided",
+            'Error: Either the "--folder" and/or "--rhoso-folder" and/or "--jira-folder"'
+            'and/or "--notes-folder" options must be provided',
             file=sys.stderr,
         )
         sys.exit(1)
@@ -105,6 +153,24 @@ if __name__ == "__main__":
             metadata=RedHatDocsMetadataProcessor(args.rhoso_folder),
             required_exts=[
                 ".txt",
+            ],
+        )
+
+    if args.jira_folder:
+        document_processor.process(
+            str(args.jira_folder),
+            metadata=JIRAMetadataProcessor(args.jira_folder),
+            required_exts=[
+                ".txt",
+            ],
+        )
+
+    if args.notes_folder:
+        document_processor.process(
+            str(args.notes_folder),
+            metadata=NotesMetadataProcessor(args.notes_folder),
+            required_exts=[
+                ".md",
             ],
         )
 
